@@ -1,8 +1,8 @@
 # cli-anything-cocoscreator
 
-Command-line tool for inspecting and building [Cocos Creator 3.8.8](https://www.cocos.com/creator) projects. Designed for use with AI agents and automation scripts.
+通过命令行操作 [Cocos Creator 3.8.8](https://www.cocos.com/creator) 项目，支持资产查询和构建。适用于 AI Agent 和自动化脚本。
 
-## Installation
+## 安装
 
 ```bash
 git clone git@github.com:OscargwStudio/cli-anything-cocoscreator.git
@@ -10,30 +10,30 @@ cd cli-anything-cocoscreator
 pip install -e .
 ```
 
-Requires Python 3.10+.
+需要 Python 3.10+。
 
-## Cocos Creator Executable
+## 配置编辑器路径
 
-The tool locates the editor in this order:
+工具按以下优先级查找 CocosCreator 可执行文件：
 
-1. `--creator-path PATH` flag
-2. `COCOS_CREATOR` environment variable
-3. macOS default: `/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator`
-4. `CocosCreator` on system `PATH`
+1. `--creator-path PATH` 命令行参数
+2. `COCOS_CREATOR` 环境变量
+3. macOS 默认路径：`/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator`
+4. 系统 `PATH` 中的 `CocosCreator`
 
-For Windows, set the environment variable:
+**Windows** 建议设置环境变量：
 
 ```powershell
 [System.Environment]::SetEnvironmentVariable("COCOS_CREATOR", "C:\CocosDashboard\resources\.editors\Creator\3.8.8\CocosCreator.exe", "User")
 ```
 
-> Asset inspection commands (`asset meta/uuid/deps/refs`, `project assets`) do **not** require the editor to be installed.
+> 资产查询命令（`asset meta/uuid/deps/refs`、`project assets`）**不依赖编辑器**，无需安装 Cocos Creator 即可使用。
 
-## Commands
+## 命令
 
 ### `info`
 
-Show harness and backend information.
+查看工具和后端信息。
 
 ```bash
 cli-anything-cocoscreator info
@@ -44,7 +44,7 @@ cli-anything-cocoscreator info --json
 
 ### `project info`
 
-Inspect project directory structure.
+查看项目目录结构。
 
 ```bash
 cli-anything-cocoscreator project info /path/to/project
@@ -54,7 +54,7 @@ cli-anything-cocoscreator project info /path/to/project
 
 ### `project assets`
 
-List all assets (excluding `.meta` files).
+列出项目所有资产（不含 `.meta` 文件）。
 
 ```bash
 cli-anything-cocoscreator project assets /path/to/project --limit 50
@@ -64,7 +64,7 @@ cli-anything-cocoscreator project assets /path/to/project --limit 50
 
 ### `asset meta`
 
-Read the `.meta` sidecar file for an asset.
+读取资产的 `.meta` 文件。
 
 ```bash
 cli-anything-cocoscreator asset meta /path/to/project assets/MySprite.png
@@ -74,7 +74,7 @@ cli-anything-cocoscreator asset meta /path/to/project assets/MySprite.png
 
 ### `asset uuid`
 
-Print the UUID of an asset.
+打印资产的 UUID。
 
 ```bash
 cli-anything-cocoscreator asset uuid /path/to/project assets/MyScript.ts
@@ -84,10 +84,11 @@ cli-anything-cocoscreator asset uuid /path/to/project assets/MyScript.ts
 
 ### `asset deps`
 
-Find all assets this file depends on (outgoing UUID references).
+查询该资产依赖哪些资产（出向引用）。
 
 ```bash
 cli-anything-cocoscreator asset deps /path/to/project assets/prefab/MyPrefab.prefab
+# 隐藏无法解析的 UUID（引擎内置资产等）
 cli-anything-cocoscreator asset deps /path/to/project assets/prefab/MyPrefab.prefab --hide-unresolved
 ```
 
@@ -95,21 +96,21 @@ cli-anything-cocoscreator asset deps /path/to/project assets/prefab/MyPrefab.pre
 
 ### `asset refs`
 
-Find all project files that reference an asset.
+查询哪些文件引用了该资产（入向引用）。
 
-For `.ts`/`.js` scripts, Cocos Creator 3.x stores references as compact UUIDs in prefab/scene files — this is handled automatically.
+Cocos Creator 3.x 在 prefab/scene 中以 23 位压缩 UUID 存储脚本引用，工具已自动处理，无需手动转换。
 
 ```bash
-# Default: list files + UUID
+# 默认：输出引用文件列表和 UUID
 cli-anything-cocoscreator asset refs /path/to/project assets/script/MyComponent.ts
 
-# Verbose: include line numbers and matched text
+# 详细模式：显示行号和匹配文本
 cli-anything-cocoscreator asset refs /path/to/project assets/script/MyComponent.ts --verbose
 
-# Search by UUID directly
+# 通过 UUID 直接搜索
 cli-anything-cocoscreator asset refs /path/to/project --uuid 45987cf6-555a-4248-8005-8a04fa602d01
 
-# Include .meta files in scan
+# 扫描范围包含 .meta 文件
 cli-anything-cocoscreator asset refs /path/to/project assets/MyTexture.png --include-meta
 ```
 
@@ -117,51 +118,51 @@ cli-anything-cocoscreator asset refs /path/to/project assets/MyTexture.png --inc
 
 ### `build`
 
-Build the project using the CocosCreator editor backend.
+调用 CocosCreator 编辑器后端构建项目。
 
 ```bash
-# Dry-run: print the command without executing
+# 先预览命令，不实际执行
 cli-anything-cocoscreator build /path/to/project --platform web-mobile --dry-run
 
-# Debug build
+# Debug 构建
 cli-anything-cocoscreator build /path/to/project --platform web-mobile --debug
 
-# Release build with extra options
+# Release 构建，附加参数
 cli-anything-cocoscreator build /path/to/project --platform android --option outputName=myapp
 
-# With timeout (seconds)
+# 设置超时（秒）
 cli-anything-cocoscreator build /path/to/project --platform ios --timeout 600
 ```
 
-Supported platforms: `web-mobile`, `web-desktop`, `android`, `ios`, `mac`, `windows`, etc.
+支持平台：`web-mobile`、`web-desktop`、`android`、`ios`、`mac`、`windows` 等。
 
 ---
 
-### `run`
+### `run`（透传）
 
-Pass arbitrary arguments directly to the CocosCreator executable.
+直接将参数透传给 CocosCreator 可执行文件。
 
 ```bash
 cli-anything-cocoscreator run -- --help
 cli-anything-cocoscreator run -- --project /path/to/project --build platform=web-mobile
 ```
 
-## Global Flags
+## 全局参数
 
-| Flag | Description |
-|------|-------------|
-| `--json` | Output machine-readable JSON |
-| `--json-output` | Alias for `--json` |
-| `--creator-path PATH` | Path to CocosCreator executable |
+| 参数 | 说明 |
+|------|------|
+| `--json` | 输出机器可读的 JSON |
+| `--json-output` | `--json` 的别名 |
+| `--creator-path PATH` | 指定 CocosCreator 可执行文件路径 |
 
-## Asset Path Convention
+## 资产路径说明
 
-Asset paths can be **absolute** or **relative to the project root**:
+资产路径支持**绝对路径**或**相对于项目根目录的路径**：
 
 ```bash
-# Absolute
+# 绝对路径
 cli-anything-cocoscreator asset uuid /Users/me/MyGame /Users/me/MyGame/assets/Hero.ts
 
-# Relative (recommended)
+# 相对路径（推荐）
 cli-anything-cocoscreator asset uuid /Users/me/MyGame assets/Hero.ts
 ```

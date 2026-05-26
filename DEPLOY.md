@@ -8,7 +8,7 @@
 
 ## 前置条件检查
 
-在开始前，依次确认：
+依次确认：
 
 1. **Python 版本** ≥ 3.10
    ```bash
@@ -27,7 +27,7 @@ git clone git@github.com:OscargwStudio/cli-anything-cocoscreator.git
 cd cli-anything-cocoscreator
 ```
 
-> 如果没有 SSH Key，改用 HTTPS：
+> 没有 SSH Key 时改用 HTTPS：
 > ```bash
 > git clone https://github.com/OscargwStudio/cli-anything-cocoscreator.git
 > ```
@@ -38,7 +38,7 @@ cd cli-anything-cocoscreator
 pip install -e .
 ```
 
-安装完成后验证：
+验证安装：
 
 ```bash
 cli-anything-cocoscreator --help
@@ -48,10 +48,10 @@ cli-anything-cocoscreator --help
 
 ## 第三步：配置 Cocos Creator 路径（按平台）
 
-工具按以下优先级自动查找可执行文件：
+工具按以下优先级查找可执行文件：
 
 1. `--creator-path` 命令行参数
-2. 环境变量 `COCOS_CREATOR`
+2. `COCOS_CREATOR` 环境变量
 3. 平台默认路径（见下表）
 
 | 平台 | 默认路径 |
@@ -73,7 +73,7 @@ cli-anything-cocoscreator --help
 )
 ```
 
-或在每次调用时指定：
+或每次调用时指定：
 
 ```bash
 cli-anything-cocoscreator --creator-path "C:\path\to\CocosCreator.exe" info
@@ -85,7 +85,7 @@ cli-anything-cocoscreator --creator-path "C:\path\to\CocosCreator.exe" info
 # 查看工具信息
 cli-anything-cocoscreator info
 
-# 查看项目资产（替换为实际项目路径）
+# 列出项目资产（替换为实际路径）
 cli-anything-cocoscreator project assets /path/to/cocos-project --limit 10
 
 # 查询资产引用
@@ -94,8 +94,8 @@ cli-anything-cocoscreator asset refs /path/to/project assets/MyScript.ts
 
 ## 常见问题
 
-| 问题 | 原因 | 解决 |
-|------|------|------|
+| 问题 | 原因 | 解决方法 |
+|------|------|---------|
 | `command not found` | pip 安装路径不在 PATH | 运行 `pip show cli-anything-cocoscreator` 查看安装位置，将其 `bin/` 加入 PATH |
 | `Cocos Creator executable not found` | 未找到编辑器 | 设置 `COCOS_CREATOR` 环境变量或使用 `--creator-path` |
 | `Asset not found` | 路径错误 | 资产路径可以是绝对路径或相对于项目根目录的相对路径 |
