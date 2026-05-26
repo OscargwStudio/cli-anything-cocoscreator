@@ -129,7 +129,7 @@ def find_asset_refs(project, asset=None, uuid=None, include_meta=False):
             uuid = read_asset_uuid(project_path, asset)
 
     references = []
-    seen_files = {}  # file -> match_type
+    seen_files = {}  # file -> uuid
 
     for file_path in _iter_search_files(project_path, include_meta):
         try:
@@ -144,7 +144,7 @@ def find_asset_refs(project, asset=None, uuid=None, include_meta=False):
             for line_no, text in enumerate(lines, 1):
                 if uuid in text or (compact and compact in text):
                     references.append({"file": rel, "line": line_no, "text": text.strip(), "match_type": "uuid"})
-                    seen_files.setdefault(rel, "uuid")
+                    seen_files.setdefault(rel, uuid)
 
         # classname-based search for script files
         if classnames and file_path.suffix in SCRIPT_REF_EXTENSIONS:
@@ -152,10 +152,10 @@ def find_asset_refs(project, asset=None, uuid=None, include_meta=False):
                 for cname in classnames:
                     if cname in text:
                         references.append({"file": rel, "line": line_no, "text": text.strip(), "match_type": "classname"})
-                        seen_files.setdefault(rel, "classname")
+                        seen_files.setdefault(rel, uuid or cname)
                         break  # one match per line per file is enough
 
-    files = [{"file": f, "match_type": t} for f, t in seen_files.items()]
+    files = [{"file": f, "uuid": u} for f, u in seen_files.items()]
     return {
         "project": str(project_path),
         "asset": asset,
