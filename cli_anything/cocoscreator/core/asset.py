@@ -3,6 +3,16 @@ import re
 from pathlib import Path
 
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+_B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+
+# @ccclass('ClassName') 或 @ccclass("ClassName")
+_CCCLASS_RE = re.compile(r'@ccclass\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)')
+# export class ClassName / export default class ClassName
+_EXPORT_CLASS_RE = re.compile(r'export\s+(?:default\s+)?class\s+(\w+)')
+
+SCRIPT_EXTENSIONS = {".ts", ".js"}
+# 只扫 prefab/scene/fire 找脚本类名引用
+SCRIPT_REF_EXTENSIONS = {".prefab", ".scene", ".fire"}
 
 TEXT_EXTENSIONS = {
     ".anim",
@@ -20,6 +30,36 @@ TEXT_EXTENSIONS = {
 }
 
 SEARCH_DIRS = ("assets", "settings", "packages")
+
+
+def extract_script_classnames(asset_path):
+    """Extract @ccclass names and export class names from a .ts/.js file."""
+    try:
+        content = Path(asset_path).read_text(errors="ignore")
+    except Exception:
+        return []
+    names = _CCCLASS_RE.findall(content)
+    if not names:
+        names = _EXPORT_CLASS_RE.findall(content)
+    return list(dict.fromkeys(names))  # deduplicate, preserve order
+
+
+def compress_uuid(uuid_str):
+    """Convert full UUID to Cocos Creator 3.x compact form (23-char string).
+
+    Algorithm: first 20 bits -> 5 hex prefix, remaining 108 bits -> 18 base64url chars.
+    """
+    hex_str = uuid_str.replace("-", "").lower()
+    if len(hex_str) != 32:
+        return None
+    try:
+        val = int(hex_str, 16)
+    except ValueError:
+        return None
+    prefix = hex_str[:5]
+    remaining = val & ((1 << 108) - 1)
+    b64 = "".join(_B64URL[(remaining >> (i * 6)) & 0x3F] for i in range(17, -1, -1))
+    return prefix + b64
 
 
 def resolve_asset_path(project, asset):
@@ -67,27 +107,60 @@ def find_asset_refs(project, asset=None, uuid=None, include_meta=False):
     project_path = Path(project).expanduser().resolve()
     if not project_path.exists():
         raise RuntimeError(f"Project path not found: {project_path}")
-    if not uuid:
-        if not asset:
-            raise RuntimeError("Either asset or uuid is required")
-        uuid = read_asset_uuid(project_path, asset)
+
+    asset_path = None
+    if asset:
+        _, asset_path = resolve_asset_path(project_path, asset)
+
+    # Detect script assets (.ts/.js): Cocos 3.x references them by class name, not uuid
+    is_script = asset_path is not None and asset_path.suffix in SCRIPT_EXTENSIONS
+    classnames = []
+    if is_script:
+        classnames = extract_script_classnames(asset_path)
+        # Also resolve uuid if available (for completeness)
+        try:
+            uuid = uuid or read_asset_uuid(project_path, asset_path)
+        except Exception:
+            pass
+    else:
+        if not uuid:
+            if not asset:
+                raise RuntimeError("Either asset or uuid is required")
+            uuid = read_asset_uuid(project_path, asset)
+
     references = []
-    seen_files = {}  # file -> first uuid match for summary
+    seen_files = {}  # file -> match_type
+
     for file_path in _iter_search_files(project_path, include_meta):
         try:
             lines = file_path.read_text(errors="ignore").splitlines()
         except Exception:
             continue
         rel = _relative_to_project(project_path, file_path)
-        for line_no, text in enumerate(lines, 1):
-            if uuid in text:
-                references.append({"file": rel, "line": line_no, "text": text.strip()})
-                seen_files.setdefault(rel, uuid)
-    files = [{"file": f, "uuid": u} for f, u in seen_files.items()]
+
+        # uuid-based search (full uuid + compact form both)
+        if uuid:
+            compact = compress_uuid(uuid) or ""
+            for line_no, text in enumerate(lines, 1):
+                if uuid in text or (compact and compact in text):
+                    references.append({"file": rel, "line": line_no, "text": text.strip(), "match_type": "uuid"})
+                    seen_files.setdefault(rel, "uuid")
+
+        # classname-based search for script files
+        if classnames and file_path.suffix in SCRIPT_REF_EXTENSIONS:
+            for line_no, text in enumerate(lines, 1):
+                for cname in classnames:
+                    if cname in text:
+                        references.append({"file": rel, "line": line_no, "text": text.strip(), "match_type": "classname"})
+                        seen_files.setdefault(rel, "classname")
+                        break  # one match per line per file is enough
+
+    files = [{"file": f, "match_type": t} for f, t in seen_files.items()]
     return {
         "project": str(project_path),
         "asset": asset,
         "uuid": uuid,
+        "classnames": classnames,
         "files": files,
         "file_count": len(files),
         "references": references,
